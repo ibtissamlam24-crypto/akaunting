@@ -1,0 +1,50 @@
+stages:
+  - build
+  - test
+  - security
+  - deploy
+
+variables:
+  DOCKER_IMAGE: php:8.1
+
+build:
+  stage: build
+  image: $DOCKER_IMAGE
+  services:
+    - name: mysql:8.0
+      alias: db
+  script:
+    - apt-get update && apt-get install -y unzip git
+    - curl -sS https://getcomposer.org/installer | php
+    - php composer.phar install
+  artifacts:
+    paths:
+      - vendor/
+
+test:
+  stage: test
+  image: $DOCKER_IMAGE
+  services:
+    - name: mysql:8.0
+      alias: db
+  script:
+    - php vendor/bin/phpunit
+  dependencies:
+    - build
+
+security:
+  stage: security
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - composer global require sensiolabs/security-checker
+    - ~/.composer/vendor/bin/security-checker security:check
+    - docker build -t akaunting .
+    - docker scan akaunting || true
+
+deploy:
+  stage: deploy
+  image: $DOCKER_IMAGE
+  script:
+    - echo "Déploiement simulé sur serveur..."
